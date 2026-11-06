@@ -32,11 +32,21 @@ pip install -e .
 
 ## Configuration
 
-Set your Anthropic API key as an environment variable:
+### API Key (Optional)
+
+An Anthropic API key is **only required** if you want to run the LLM auditor:
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key-here"
 ```
+
+**What requires an API key:**
+- `--mode claude` (LLM auditor only)
+- `--mode both` (baseline + LLM comparison)
+
+**What does NOT require an API key:**
+- `--mode baseline` (deterministic rule-based auditor) - **runs 100% locally**
+- 3D visualizer (`./test_visualizer.sh` and `sc_audit_3d_visualizer.html`) - **runs 100% locally**
 
 ## Usage
 
