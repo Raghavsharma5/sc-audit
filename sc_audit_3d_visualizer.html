@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sc-audit: 3D Single-Cell QC Visualizer</title>
+    <style>
+        /* ===================================
+           CLEAN ACADEMIC THEME
+           =================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #fafafa;
+            color: #1f2937;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* ===================================
+           HEADER
+           =================================== */
+        #header {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        #header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        #cell-count {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* ===================================
+           CONTROL PANEL (LEFT)
+           =================================== */
+        #control-panel {
+            position: fixed;
+            top: 120px;
+            left: 20px;
+            width: 280px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            z-index: 100;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .control-section {
+            margin-bottom: 24px;
+        }
+
+        .control-section h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: #f4f4f5;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            color: #374151;
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .btn:hover {
+            background: #e4e4e7;
+            border-color: #d4d4d8;
+        }
+
+        .btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .slider-container {
+            margin: 16px 0;
+        }
+
+        .slider-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-value {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #e4e4e7;
+            outline: none;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            border: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid #d4d4d8;
+        }
+
+        /* ===================================
+           DIAGNOSTIC PANEL (RIGHT)
+           =================================== */
+        #diagnostic-panel {
+            position: fixed;
+            top: 20px;
+            right: -380px;
+            width: 360px;
+            max-height: calc(100vh - 40px);
+            z-index: 100;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        #diagnostic-panel.visible {
+            right: 20px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #9ca3af;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #ef4444;
+        }
+
+        .diagnostic-header {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e4e4e7;
+        }
+
+        .cell-id {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .cluster-name {
+            font-size: 18px;
+            color: #1f2937;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .bio-info {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #6b7280;
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            padding: 12px;
+            background: #f9fafb;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .qc-status {
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .qc-status.clean {
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+
+        .qc-status.warning {
+            background: #fffbeb;
+            border-color: #f59e0b;
+        }
+
+        .qc-status.critical {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        .qc-status-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f2937;
+        }
+
+        .qc-note {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+
+        .marker-list {
+            margin-top: 16px;
+        }
+
+        .marker-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 12px;
+        }
+
+        .marker-name {
+            color: #6b7280;
+        }
+
+        .marker-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        /* ===================================
+           GLOSSARY (BOTTOM)
+           =================================== */
+        #glossary {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 1000px;
+            max-height: 0;
+            overflow: hidden;
+            z-index: 100;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: max-height 0.3s ease;
+        }
+
+        #glossary.visible {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #glossary-content {
+            padding: 20px;
+        }
+
+        #glossary-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            padding: 10px 20px;
+            background: white;
+            border: 1px solid #e4e4e7;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            color: #374151;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        #glossary-toggle:hover {
+            background: #f9fafb;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .glossary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .glossary-term {
+            padding: 14px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border: 1px solid #e4e4e7;
+        }
+
+        .glossary-term dt {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 6px;
+        }
+
+        .glossary-term dd {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #6b7280;
+        }
+
+        /* ===================================
+           TOOLTIP
+           =================================== */
+        #tooltip {
+            position: fixed;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            color: #1f2937;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .tooltip-cluster {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-metric {
+            color: #6b7280;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <div id="header">
+        <h1>sc-audit: 3D QC Visualizer</h1>
+        <div id="cell-count">Loading cells...</div>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel">
+        <div class="control-section">
+            <h3>View Modes</h3>
+            <button class="btn active" data-mode="lineage">🧬 Cell Types</button>
+            <button class="btn" data-mode="lysis">🔬 Mitochondrial %</button>
+            <button class="btn" data-mode="doublet">👥 Synthetic Doublets</button>
+        </div>
+
+        <div class="control-section" id="threshold-section" style="display: none;">
+            <h3>MT% Detection Threshold</h3>
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Hard Cutoff</span>
+                    <span class="slider-value" id="threshold-display">5.0%</span>
+                </div>
+                <input type="range" id="mt-threshold" min="2" max="15" step="0.5" value="5">
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3>Camera</h3>
+            <button class="btn" id="toggle-rotation">⏸ Pause Rotation</button>
+            <button class="btn" id="reset-camera">🎯 Reset View</button>
+        </div>
+
+        <div class="control-section">
+            <h3>Cluster Legend</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #5b8cc9;"></div>
+                <span>CD3+ T-cells</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #6fb96f;"></div>
+                <span>CD14+ Monocytes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #d4a14e;"></div>
+                <span>CD79A+ B-cells</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9d8dc7;"></div>
+                <span>NKG7+ NK-cells</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #c77c7c;"></div>
+                <span>CD16+ Monocytes</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Panel -->
+    <div id="diagnostic-panel">
+        <button class="close-btn" id="close-diagnostic">×</button>
+        <div class="diagnostic-header">
+            <div class="cell-id" id="diag-cell-id">CELL_00000</div>
+            <div class="cluster-name" id="diag-cluster-name">Cluster 0: CD3+ T-cells</div>
+            <div class="bio-info" id="diag-bio-info">
+                T-cells identify and eliminate infected cells.
+            </div>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total UMI</div>
+                <div class="metric-value" id="diag-umi">2,450</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Genes Detected</div>
+                <div class="metric-value" id="diag-genes">890</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">MT %</div>
+                <div class="metric-value" id="diag-mt">3.2%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">CD3D</div>
+                <div class="metric-value" id="diag-cd3d">High</div>
+            </div>
+        </div>
+
+        <div class="qc-status clean" id="diag-qc-status">
+            <div class="qc-status-label" id="diag-qc-label">✓ QC: Clean</div>
+            <div class="qc-note" id="diag-qc-note">
+                This cell passes quality checks.
+            </div>
+        </div>
+
+        <div class="marker-list">
+            <div class="marker-item">
+                <span class="marker-name">CD3D (T-cell receptor)</span>
+                <span class="marker-value" id="diag-marker-cd3d">High</span>
+            </div>
+            <div class="marker-item">
+                <span class="marker-name">FTL (Iron/stress)</span>
+                <span class="marker-value" id="diag-marker-ftl">Low</span>
+            </div>
+            <div class="marker-item">
+                <span class="marker-name">RPS12 (Ribosomal)</span>
+                <span class="marker-value" id="diag-marker-rps12">Medium</span>
+            </div>
+            <div class="marker-item">
+                <span class="marker-name">MT-ND1 (Mitochondrial)</span>
+                <span class="marker-value" id="diag-marker-mtnd1">Low</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Glossary -->
+    <div id="glossary">
+        <div id="glossary-content">
+            <div class="glossary-grid">
+                <div class="glossary-term">
+                    <dt>UMI / Total Counts</dt>
+                    <dd>
+                        Digital barcode counts for RNA molecules. Like counting unique package IDs.
+                        Healthy: ~2,000-4,000. Doublets: 2× (merged cells).
+                    </dd>
+                </div>
+                <div class="glossary-term">
+                    <dt>Mitochondrial %</dt>
+                    <dd>
+                        Cell membrane burst meter. Dead cells leak cytoplasm but trap mitochondria, inflating MT%.
+                        Threshold: >5% = likely dead.
+                    </dd>
+                </div>
+                <div class="glossary-term">
+                    <dt>Doublets</dt>
+                    <dd>
+                        Two cells in one droplet. Creates merged transcriptomes with 2× UMI and mixed markers
+                        (e.g., CD3D + CD14 = T-cell + Monocyte).
+                    </dd>
+                </div>
+                <div class="glossary-term">
+                    <dt>Leiden Clustering</dt>
+                    <dd>
+                        Graph-based grouping. Cells with similar expression get connected, algorithm finds communities
+                        like social cliques.
+                    </dd>
+                </div>
+                <div class="glossary-term">
+                    <dt>Genes Detected</dt>
+                    <dd>
+                        Unique genes with reads. Healthy: 500-2,000. Low (<400) indicates degraded RNA or empty droplets.
+                    </dd>
+                </div>
+                <div class="glossary-term">
+                    <dt>Cell Markers</dt>
+                    <dd>
+                        ID badges: CD3D = T-cells, CD14 = Monocytes, CD79A = B-cells.
+                        Surface proteins unique to cell types.
+                    </dd>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Glossary Toggle -->
+    <button id="glossary-toggle">📖 Bio Terms Glossary</button>
+
+    <!-- Tooltip -->
+    <div id="tooltip">
+        <div class="tooltip-cluster">Cluster 0</div>
+        <div class="tooltip-metric">MT: 3.2% | UMI: 2,450</div>
+    </div>
+
+    <!-- Three.js (Classic, No Modules) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Real PBMC3k Cell Data -->
+    <script src="cells_data.js"></script>
+
+    <script>
+        // ===================================
+        // GLOBAL STATE
+        // ===================================
+        let scene, camera, renderer, controls;
+        let cells = [];
+        let cellMeshes = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let hoveredCell = null;
+        let selectedCell = null;
+        let isRotating = true;
+        let currentMode = 'lineage';
+        let mtThreshold = 5.0;
+
+        // Cluster color mapping (standard PBMC3k clusters)
+        const CLUSTER_COLORS = {
+            0: 0x5b8cc9,  // CD4+ T-cells (blue)
+            1: 0x6fb96f,  // CD14+ Monocytes (green)
+            2: 0x7c9fc9,  // CD8+ T-cells (light blue)
+            3: 0xd4a14e,  // B-cells (amber)
+            4: 0x9d8dc7,  // NK cells (purple)
+            5: 0xc77c7c,  // FCGR3A+ Monocytes (red)
+            6: 0xe8a87c,  // Dendritic cells (orange)
+            7: 0xb896c7   // Megakaryocytes (violet)
+        };
+
+        // Biological descriptions
+        const CLUSTER_BIO = {
+            'CD4+ T-cells': 'Helper T-cells coordinate immune responses and activate other immune cells.',
+            'CD14+ Monocytes': 'Classical monocytes that phagocytose pathogens and initiate inflammation.',
+            'CD8+ T-cells': 'Cytotoxic T-cells that directly kill infected or cancerous cells.',
+            'B-cells': 'B-cells produce antibodies to neutralize pathogens.',
+            'NK cells': 'Natural Killer cells rapidly attack virus-infected and tumor cells.',
+            'FCGR3A+ Monocytes': 'Non-classical monocytes that patrol blood vessels.',
+            'Dendritic cells': 'Professional antigen-presenting cells that activate T-cells.',
+            'Megakaryocytes': 'Large cells that produce platelets for blood clotting.'
+        };
+
+        // Cell wrapper for real data
+        class Cell {
+            constructor(realData) {
+                // Real cell data from Scanpy
+                this.id = realData.id;
+                this.clusterId = realData.clusterId;
+                this.clusterName = realData.clusterName;
+                this.position = new THREE.Vector3(realData.x, realData.y, realData.z);
+
+                // Real QC metrics
+                this.umi = realData.umiCounts;
+                this.genes = realData.genesDetected;
+                this.mtPct = realData.mtPct;
+
+                // Real marker expression
+                this.markers = realData.markers;
+                this.cd3d = realData.markers.CD3D.level;
+                this.ftl = realData.markers.FTL.level;
+                this.rps12 = realData.markers.RPS12.level;
+                this.mtnd1 = realData.markers['MT-ND1'].level;
+
+                // QC status
+                this.qcStatus = realData.qcStatus;
+                this.qcNote = realData.qcNote;
+                this.artifactType = realData.artifactType;
+
+                // Get cluster color
+                this.color = CLUSTER_COLORS[this.clusterId] || 0x888888;
+
+                // Biological info
+                this.bioInfo = CLUSTER_BIO[this.clusterName] || 'Cell type information not available.';
+            }
+        }
+
+        // ===================================
+        // INITIALIZATION
+        // ===================================
+        function init() {
+            try {
+                console.log('Initializing sc-audit visualizer...');
+
+                // Check THREE.js loaded
+                if (typeof THREE === 'undefined') {
+                    throw new Error('THREE.js failed to load');
+                }
+
+                // Scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xfafafa);
+
+                // Camera
+                camera = new THREE.PerspectiveCamera(
+                    50,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                camera.position.set(45, 35, 45);
+
+                // Renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+                // Controls
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.autoRotate = true;
+                controls.autoRotateSpeed = 0.8;
+                controls.maxDistance = 120;
+                controls.minDistance = 15;
+
+                // Lighting
+                const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambLight);
+
+                const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
+                dirLight1.position.set(30, 40, 30);
+                scene.add(dirLight1);
+
+                const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+                dirLight2.position.set(-30, -20, -30);
+                scene.add(dirLight2);
+
+                // Grid
+                const gridHelper = new THREE.GridHelper(80, 40, 0xd4d4d8, 0xe4e4e7);
+                gridHelper.position.y = -20;
+                scene.add(gridHelper);
+
+                // Load real cells
+                const loaded = loadRealCells();
+                if (!loaded) {
+                    throw new Error('Failed to load cell data');
+                }
+                renderCells();
+
+                // Event listeners
+                setupEventListeners();
+
+                // Start animation
+                animate();
+
+                console.log('Initialization complete!');
+                document.getElementById('cell-count').textContent = `${cells.length} cells loaded`;
+
+            } catch (error) {
+                console.error('Initialization failed:', error);
+                alert('Failed to initialize visualizer: ' + error.message);
+            }
+        }
+
+        // ===================================
+        // LOAD REAL CELLS
+        // ===================================
+        function loadRealCells() {
+            if (typeof window.REAL_CELL_DATA === 'undefined') {
+                console.warn('Real cell data not loaded. Make sure cells_data.js is in the same directory.');
+                alert('Cell data not found. Please run export_cells_json.py first and ensure cells_data.js is in the same directory.');
+                return false;
+            }
+
+            console.log(`Loading ${window.REAL_CELL_DATA.length} real PBMC3k cells...`);
+
+            window.REAL_CELL_DATA.forEach(cellData => {
+                const cell = new Cell(cellData);
+                cells.push(cell);
+            });
+
+            console.log(`Loaded ${cells.length} real cells`);
+
+            // Print statistics
+            const clusterCounts = {};
+            const artifactCounts = { clean: 0, lysis: 0, doublet: 0, degraded: 0 };
+
+            cells.forEach(cell => {
+                clusterCounts[cell.clusterName] = (clusterCounts[cell.clusterName] || 0) + 1;
+                if (!cell.artifactType) artifactCounts.clean++;
+                else artifactCounts[cell.artifactType]++;
+            });
+
+            console.log('Cluster distribution:', clusterCounts);
+            console.log('QC status:', artifactCounts);
+
+            // Update legend dynamically
+            updateLegend();
+
+            return true;
+        }
+
+        // ===================================
+        // UPDATE LEGEND
+        // ===================================
+        function updateLegend() {
+            const legendContainer = document.querySelector('.control-section:last-child');
+
+            // Get unique clusters
+            const clusterMap = new Map();
+            cells.forEach(cell => {
+                if (!clusterMap.has(cell.clusterId)) {
+                    clusterMap.set(cell.clusterId, {
+                        name: cell.clusterName,
+                        color: cell.color,
+                        count: 0
+                    });
+                }
+                clusterMap.get(cell.clusterId).count++;
+            });
+
+            // Sort by cluster ID
+            const sortedClusters = Array.from(clusterMap.entries())
+                .sort((a, b) => a[0] - b[0]);
+
+            // Build legend HTML
+            let legendItemsHTML = '<h3>Cluster Legend</h3>';
+            sortedClusters.forEach(([id, info]) => {
+                const hexColor = '#' + info.color.toString(16).padStart(6, '0');
+                legendItemsHTML += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: ${hexColor};"></div>
+                        <span>${info.name} (${info.count})</span>
+                    </div>
+                `;
+            });
+
+            // Replace legend content
+            legendContainer.innerHTML = legendItemsHTML;
+        }
+
+        // ===================================
+        // RENDER CELLS
+        // ===================================
+        function renderCells() {
+            cells.forEach(cell => {
+                let color = cell.color;
+                let size = 0.5;
+
+                // Artifact visual adjustments
+                if (cell.artifactType === 'lysis') {
+                    color = 0xe07a5f; // Burnt orange
+                    size = 0.6;
+                }
+                if (cell.artifactType === 'doublet') {
+                    color = 0x8b7fc4; // Muted purple
+                    size = 0.8;
+                }
+                if (cell.artifactType === 'degraded') {
+                    color = 0x9ca3af; // Grey
+                    size = 0.35;
+                }
+
+                const geometry = new THREE.SphereGeometry(size, 12, 12);
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.4,
+                    metalness: 0.1
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(cell.position);
+                mesh.userData = { cell: cell };
+
+                scene.add(mesh);
+                cellMeshes.push(mesh);
+                cell.mesh = mesh;
+            });
+        }
+
+        // ===================================
+        // VIEW MODES
+        // ===================================
+        function setViewMode(mode) {
+            currentMode = mode;
+
+            // Update buttons
+            document.querySelectorAll('[data-mode]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show/hide threshold slider
+            document.getElementById('threshold-section').style.display =
+                mode === 'lysis' ? 'block' : 'none';
+
+            // Update cell colors
+            cells.forEach(cell => {
+                if (!cell.mesh) return;
+
+                let color;
+
+                switch (mode) {
+                    case 'lineage':
+                        color = cell.color;
+                        if (cell.artifactType === 'lysis') color = 0xe07a5f;
+                        if (cell.artifactType === 'doublet') color = 0x8b7fc4;
+                        if (cell.artifactType === 'degraded') color = 0x9ca3af;
+                        break;
+
+                    case 'lysis':
+                        if (cell.mtPct > mtThreshold) {
+                            const intensity = Math.min((cell.mtPct - mtThreshold) / 20, 1);
+                            color = new THREE.Color().setHSL(0, 0.7, 0.5 - intensity * 0.15);
+                        } else {
+                            color = 0x94a3b8; // Grey for clean
+                        }
+                        break;
+
+                    case 'doublet':
+                        if (cell.artifactType === 'doublet') {
+                            color = 0x8b7fc4;
+                        } else {
+                            color = 0xd1d5db; // Light grey background
+                        }
+                        break;
+                }
+
+                cell.mesh.material.color.set(color);
+            });
+        }
+
+        // ===================================
+        // INTERACTION
+        // ===================================
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(cellMeshes);
+
+            // Clear hover
+            if (hoveredCell) {
+                hoveredCell.mesh.scale.set(1, 1, 1);
+            }
+            hoveredCell = null;
+            document.getElementById('tooltip').style.display = 'none';
+            document.body.style.cursor = 'default';
+
+            // New hover
+            if (intersects.length > 0) {
+                hoveredCell = intersects[0].object.userData.cell;
+                hoveredCell.mesh.scale.set(1.3, 1.3, 1.3);
+                document.body.style.cursor = 'pointer';
+
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.display = 'block';
+                tooltip.style.left = event.clientX + 15 + 'px';
+                tooltip.style.top = event.clientY + 15 + 'px';
+                tooltip.querySelector('.tooltip-cluster').textContent = hoveredCell.clusterName;
+                tooltip.querySelector('.tooltip-metric').textContent =
+                    `MT: ${hoveredCell.mtPct.toFixed(1)}% | UMI: ${hoveredCell.umi.toLocaleString()}`;
+            }
+        }
+
+        function onMouseClick() {
+            if (hoveredCell) {
+                selectedCell = hoveredCell;
+                showDiagnostic(selectedCell);
+            }
+        }
+
+        // ===================================
+        // DIAGNOSTIC PANEL
+        // ===================================
+        function showDiagnostic(cell) {
+            document.getElementById('diagnostic-panel').classList.add('visible');
+
+            document.getElementById('diag-cell-id').textContent = cell.id;
+            document.getElementById('diag-cluster-name').textContent =
+                `Cluster ${cell.clusterId}: ${cell.clusterName}`;
+            document.getElementById('diag-bio-info').textContent = cell.bioInfo;
+
+            document.getElementById('diag-umi').textContent = cell.umi.toLocaleString();
+            document.getElementById('diag-genes').textContent = cell.genes;
+            document.getElementById('diag-mt').textContent = cell.mtPct.toFixed(1) + '%';
+            document.getElementById('diag-cd3d').textContent = cell.cd3d;
+
+            document.getElementById('diag-marker-cd3d').textContent = cell.cd3d;
+            document.getElementById('diag-marker-ftl').textContent = cell.ftl;
+            document.getElementById('diag-marker-rps12').textContent = cell.rps12;
+            document.getElementById('diag-marker-mtnd1').textContent = cell.mtnd1;
+
+            const statusDiv = document.getElementById('diag-qc-status');
+            statusDiv.className = 'qc-status ' + cell.qcStatus;
+
+            let statusLabel = '✓ QC: Clean';
+            if (cell.qcStatus === 'warning') statusLabel = '⚠ QC: Warning';
+            if (cell.qcStatus === 'critical') statusLabel = '✖ QC: Critical';
+
+            document.getElementById('diag-qc-label').textContent = statusLabel;
+            document.getElementById('diag-qc-note').textContent = cell.qcNote;
+        }
+
+        // ===================================
+        // EVENT LISTENERS
+        // ===================================
+        function setupEventListeners() {
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onMouseClick);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // View mode buttons
+            document.querySelectorAll('[data-mode]').forEach(btn => {
+                btn.addEventListener('click', () => setViewMode(btn.dataset.mode));
+            });
+
+            // MT threshold
+            document.getElementById('mt-threshold').addEventListener('input', (e) => {
+                mtThreshold = parseFloat(e.target.value);
+                document.getElementById('threshold-display').textContent = mtThreshold.toFixed(1) + '%';
+                if (currentMode === 'lysis') setViewMode('lysis');
+            });
+
+            // Rotation toggle
+            document.getElementById('toggle-rotation').addEventListener('click', function() {
+                isRotating = !isRotating;
+                controls.autoRotate = isRotating;
+                this.textContent = isRotating ? '⏸ Pause Rotation' : '▶ Resume Rotation';
+            });
+
+            // Reset camera
+            document.getElementById('reset-camera').addEventListener('click', () => {
+                camera.position.set(45, 35, 45);
+                controls.target.set(0, 0, 0);
+                controls.update();
+            });
+
+            // Close diagnostic
+            document.getElementById('close-diagnostic').addEventListener('click', () => {
+                document.getElementById('diagnostic-panel').classList.remove('visible');
+            });
+
+            // Glossary toggle
+            document.getElementById('glossary-toggle').addEventListener('click', () => {
+                const glossary = document.getElementById('glossary');
+                glossary.classList.toggle('visible');
+                const btn = document.getElementById('glossary-toggle');
+                btn.textContent = glossary.classList.contains('visible') ?
+                    '✖ Close Glossary' : '📖 Bio Terms Glossary';
+            });
+        }
+
+        // ===================================
+        // ANIMATION LOOP
+        // ===================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            controls.update();
+
+            // Subtle pulse for doublets
+            const time = Date.now() * 0.001;
+            cells.forEach(cell => {
+                if (cell.artifactType === 'doublet' && cell.mesh && cell !== hoveredCell) {
+                    const scale = 1 + Math.sin(time * 2) * 0.08;
+                    cell.mesh.scale.set(scale, scale, scale);
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // ===================================
+        // START
+        // ===================================
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

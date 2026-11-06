@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sc-audit"
+version = "0.1.0"
+description = "Deterministic, schema-constrained audit harness for single-cell RNA-sequencing workflows"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "scanpy>=1.9.0",
+    "anndata>=0.9.0",
+    "anthropic>=0.34.0",
+    "pydantic>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+sc-audit = "scripts.run_audit:main"
+sc-benchmark = "scripts.run_benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "eval*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

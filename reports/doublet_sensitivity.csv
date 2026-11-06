@@ -1,0 +1,6 @@
+doublet_rate,baseline_detected,claude_detected,baseline_verdict,claude_verdict,n_doublets_created,median_counts_doublets,median_counts_original,counts_ratio,n_baseline_flags,n_claude_flags
+0.02,False,False,ACCEPTABLE,SKIPPED,53,3400.2468,1703.9552,1.9955025,0,0
+0.05,False,False,ACCEPTABLE,SKIPPED,134,3424.6045,1703.9552,2.0097973,0,0
+0.08,False,False,ACCEPTABLE,SKIPPED,215,3403.5312,1703.9552,1.99743,0,0
+0.12,False,False,ACCEPTABLE,SKIPPED,323,3403.3442,1703.9552,1.9973203,0,0
+0.2,False,False,ACCEPTABLE,SKIPPED,538,3405.8955,1703.9552,1.9988176,0,0
